@@ -1,0 +1,261 @@
+<!DOCTYPE html>  
+<html lang="zh-CN">  
+<head>  
+  <meta charset="UTF-8">  
+  <title>JSON管理与问题接口示例</title>  
+  <!-- 引入 JSONEditor 的 CSS 和 JS -->  
+  <link rel="stylesheet" href="./css/jsoneditor.min.css" />  
+  <script src="./js/jsoneditor.min.js"></script>  
+  
+  <!-- 引入 marked.js 库（CDN） -->  
+  <script src="./js/marked.min.js"></script>  
+</head>  
+<body>  
+  <h1>Agent HTML Client for Testing Purpose</h1>  
+  
+  <!-- 1. JSON 编辑控件（树形结构） -->  
+  <div id="jsoneditor" style="width: 600px; height: 400px; border: 1px solid #ccc;"></div>  
+  
+  <!-- 新增：复制按钮 -->  
+  <button onclick="copyJsonString()">复制当前 JSON</button>  
+  <br><br>  
+  
+  <!-- 2. 输入框：可直接输入 JSON 文本 -->  
+  <div>  
+    <textarea id="jsonTextInput" rows="5" cols="70" placeholder="在这里输入或粘贴 JSON 文本"></textarea><br>  
+    <button onclick="loadJsonIntoEditor()">将文本载入到JSON控件</button>  
+    <button onclick="submitJsonToServer()">提交 JSON（submitjson）</button>  
+  </div>  
+  
+  <hr>  
+  <!-- 3. 输入框：客户复杂问题 -->  
+  <div>  
+    <input type="text" value="统计订单数量" id="analyzeQuestionInput"  
+           placeholder="统计订单数量" style="width: 300px;">  
+    <button onclick="analyzeQuestion()">提交复杂问题（analyzequestion）</button>  
+  </div>  
+  
+  <br>  
+  <!-- 4. 输入框：客户简单问题 -->  
+  <div>  
+    <input type="text" id="quickQueryInput" placeholder="输入简单问题" style="width: 300px;">  
+    <button onclick="quickQuery()">提交简单问题（quickquery）</button>  
+  </div>  
+  
+  <br>  
+  <!-- 5. 按钮：将当前 JSON 控件内容提交至后端，并用返回值刷新编辑器 -->  
+  <button onclick="runJsonOnServer()">执行 JSON （runjson）</button>  
+  <hr>  
+  
+  <!-- 6. 获取 Token 并在多行文本框中显示结果 -->  
+  <button onclick="getToken()">获取 Token（gettoken）</button>  
+  <br><br>  
+  <textarea id="tokenResult" rows="5" cols="70" placeholder="获取的 Token 将在这里显示"></textarea>  
+  
+  <hr>  
+  <!-- 7. 手动同步 JSON（syncjson） -->  
+  <button onclick="syncJsonFromServer()">手动同步 JSON（syncjson）</button>  
+  
+  <!-- 分割线，以下开始是 Markdown 编辑示例 -->  
+  <hr>  
+  <h2>Markdown 编辑示例</h2>  
+  <div>  
+    <textarea id="markdownInput" rows="5" cols="70" placeholder="在这里输入 Markdown 文本"></textarea>  
+    <br>  
+    <button onclick="updateMarkdownPreview()">更新预览</button>  
+  </div>  
+  <!-- Markdown 预览区域 -->  
+  <div id="markdownPreview" style="margin-top: 10px; padding: 10px; border: 1px solid #ccc;">  
+    这里是Markdown预览区  
+  </div>  
+  
+  <!-- 所有的脚本逻辑可以放在此处 -->  
+  <script>  
+    let editor = null;  
+  
+    // 页面加载完成后初始化 JSONEditor  
+    window.addEventListener('DOMContentLoaded', function() {  
+      // 初始化 JSONEditor  
+      const container = document.getElementById("jsoneditor");  
+      const options = {  
+        mode: 'tree'  // 以树形结构显示和编辑  
+      };  
+      editor = new JSONEditor(container, options);  
+    });  
+  
+    // 1. 手动同步 JSON 的函数  
+    function syncJsonFromServer() {  
+      fetch("http://127.0.0.1:8000/syncjson", {  
+        method: "POST",  
+        headers: {  
+          'Content-Type': 'application/json'  
+        },  
+        body: JSON.stringify({  
+          sessionid: "aabbcc"  
+        })  
+      })  
+      .then(response => response.json())  
+      .then(data => {  
+        editor.set(data);  
+        console.log("手动同步 JSON 内容成功，已更新编辑器内容。");  
+        alert("手动同步 JSON 内容成功！");  
+      })  
+      .catch(err => console.error('syncjson 调用失败:', err));  
+    }  
+  
+    // 2. 将文本输入框中的 JSON 载入到 JSONEditor  
+    function loadJsonIntoEditor() {  
+      const jsonText = document.getElementById("jsonTextInput").value;  
+      try {  
+        const jsonObj = JSON.parse(jsonText);  
+        editor.set(jsonObj);  
+        console.log("已成功将文本载入到 JSON 控件！");  
+        alert("已成功将文本载入到 JSON 控件！");  
+      } catch(e) {  
+        console.error("JSON 格式错误: " + e.message);  
+      }  
+    }  
+  
+    // 3. 提交 JSON 控件内容给后端（submitjson）  
+    function submitJsonToServer() {  
+      const editorData = editor.get();  
+      const jsonString = JSON.stringify(editorData);  
+  
+      fetch("http://127.0.0.1:8000/submitjson", {  
+        method: "POST",  
+        headers: {  
+          "Content-Type": "application/json"  
+        },  
+        body: JSON.stringify({  
+          sessionid: "aabbcc",  
+          taskjson: jsonString  
+        })  
+      })  
+      .then(response => response.json())  
+      .then(data => {  
+        editor.set(data);  
+        console.log("提交 JSON 内容成功，已更新编辑器内容。");  
+        alert("提交 JSON 内容成功！");  
+      })  
+      .catch(err => console.error('submitjson 调用失败:', err));  
+    }  
+  
+    // 4. 提交复杂问题给后端（analyzequestion）  
+    function analyzeQuestion() {  
+      const question = document.getElementById("analyzeQuestionInput").value;  
+  
+      fetch("http://127.0.0.1:8000/analyzequestion", {  
+        method: "POST",  
+        headers: {  
+          "Content-Type": "application/json"  
+        },  
+        body: JSON.stringify({  
+          sessionid: "aabbcc",  
+          question: question  
+        })  
+      })  
+      .then(response => response.json())  
+      .then(data => {  
+        editor.set(data);  
+        console.log("分析成功，已更新编辑器内容。");  
+        alert("分析成功！");  
+      })  
+      .catch(err => console.error('analyzequestion 调用失败:', err));  
+    }  
+  
+    // 5. 提交简单问题给后端（quickquery）  
+    function quickQuery() {  
+      const question = document.getElementById("quickQueryInput").value;  
+  
+      fetch("http://127.0.0.1:8000/quickquery", {  
+        method: "POST",  
+        headers: {  
+          "Content-Type": "application/json"  
+        },  
+        body: JSON.stringify({  
+          sessionid: "aabbcc",  
+          question: question  
+        })  
+      })  
+      .then(response => response.json())  
+      .then(data => {  
+        editor.set(data);  
+        console.log("简单问题回答 成功，已更新编辑器内容。");  
+        alert("简单问题提交成功！");  
+      })  
+      .catch(err => console.error('quickquery 调用失败:', err));  
+    }  
+  
+    // 6. 提交当前 JSON 控件内容并用返回结果刷新编辑器（runjson）  
+    function runJsonOnServer() {  
+      const editorData = editor.get();  
+      const jsonString = JSON.stringify(editorData);  
+      const question = document.getElementById("analyzeQuestionInput").value;  
+  
+      fetch("http://127.0.0.1:8000/runjson", {  
+        method: "POST",  
+        headers: {  
+          "Content-Type": "application/json"  
+        },  
+        body: JSON.stringify({  
+          sessionid: "aabbcc",  
+          taskjson: jsonString,  
+          question: question  
+        })  
+      })  
+      .then(response => response.json())  
+      .then(result => {  
+        console.log("runjson 接口返回:", result);  
+        // 将返回结果再次更新到编辑器  
+        editor.set(result);  
+        alert("执行 JSON 成功！");  
+      })  
+      .catch(err => console.error('runjson 调用失败:', err));  
+    }  
+  
+    // 7. 获取 Token（gettoken）并在多行文本框中显示  
+    function getToken() {  
+      fetch("http://127.0.0.1:8000/gettoken", {  
+        method: "POST",  
+        headers: {  
+          "Content-Type": "application/json"  
+        },  
+        body: JSON.stringify({  
+          sessionid: "aabbcc"  
+        })  
+      })  
+      .then(response => response.json())  
+      .then(result => {  
+        console.log("gettoken 接口返回:", result);  
+        document.getElementById("tokenResult").value = JSON.stringify(result, null, 2);  
+        alert("Token 获取成功！");  
+      })  
+      .catch(err => console.error('gettoken 调用失败:', err));  
+    }  
+  
+    // 8. Markdown 编辑示例：更新预览的函数  
+    function updateMarkdownPreview() {  
+      let input = document.getElementById('markdownInput').value;  
+      // 将文本中的 "\n" 替换为真正的换行符  
+      input = input.replace(/\\n/g, '\n');  
+      // 调用 marked.js 将 Markdown 转换为 HTML  
+      const output = marked.parse(input);  
+      document.getElementById('markdownPreview').innerHTML = output;  
+    }  
+  
+    // 新增：copyJsonString函数  
+    function copyJsonString() {  
+      const editorData = editor.get();  
+      const jsonString = JSON.stringify(editorData, null, 2); // 格式化缩进  
+      // 使用 Clipboard API 复制到剪贴板  
+      navigator.clipboard.writeText(jsonString)  
+        .then(() => {  
+          alert("JSON 已成功复制到剪贴板!");  
+        })  
+        .catch(err => {  
+          console.error("复制失败:", err);  
+        });  
+    }  
+  </script>  
+</body>  
+</html>

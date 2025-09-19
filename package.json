@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "jsoneditor": "^10.2.0",
+    "marked": "^15.0.11"
+  }
+}
